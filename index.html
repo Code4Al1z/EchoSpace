@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Echospace</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #000;
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    /* ── Overlay ─────────────────────────────────────────────────────────── */
+
+    #overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 12, 0.92);
+      z-index: 10;
+      transition: opacity 0.8s ease;
+    }
+
+    #overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #overlay h1 {
+      color: #aabbff;
+      font-size: 3rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    #overlay .subtitle {
+      color: #556688;
+      font-size: 0.85rem;
+      letter-spacing: 0.15em;
+      margin-bottom: 0.8rem;
+    }
+
+    #overlay .headphone-note {
+      color: #334455;
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      margin-bottom: 2.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    #overlay .headphone-note::before,
+    #overlay .headphone-note::after {
+      content: '';
+      display: block;
+      width: 24px;
+      height: 1px;
+      background: #223344;
+    }
+
+    #start-btn {
+      background: transparent;
+      border: 1px solid #334466;
+      color: #aabbff;
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      letter-spacing: 0.2em;
+      padding: 0.75rem 2.5rem;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: border-color 0.3s, color 0.3s;
+    }
+
+    #start-btn:hover {
+      border-color: #aabbff;
+      color: #fff;
+    }
+
+    /* ── HUD elements ────────────────────────────────────────────────────── */
+
+    #controls-hint {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #7788bb;
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      pointer-events: none;
+      transition: opacity 1s ease;
+      white-space: nowrap;
+      z-index: 5;
+    }
+
+    #controls-hint.fade {
+      opacity: 0;
+    }
+
+    #crosshair {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 16px;
+      height: 16px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.4s;
+      z-index: 5;
+    }
+
+    #crosshair::before,
+    #crosshair::after {
+      content: '';
+      position: absolute;
+      background: rgba(170, 187, 255, 0.5);
+    }
+
+    #crosshair::before {
+      width: 1px;
+      height: 100%;
+      left: 50%;
+      top: 0;
+    }
+
+    #crosshair::after {
+      width: 100%;
+      height: 1px;
+      top: 50%;
+      left: 0;
+    }
+
+    #crosshair.visible { opacity: 1; }
+
+    #interact-prompt {
+      position: fixed;
+      bottom: 35%;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #aabbff;
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 5;
+    }
+
+    #interact-prompt.visible { opacity: 1; }
+
+    /* ── Name plate (shown on interaction) ───────────────────────────────── */
+
+    #name-plate {
+      position: fixed;
+      top: 38%;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      z-index: 5;
+    }
+
+    #name-plate.visible {
+      opacity: 1;
+    }
+
+    #name-plate .plate-title {
+      color: #ccd6ff;
+      font-size: 0.75rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+    }
+
+    #name-plate .plate-detail {
+      color: #445577;
+      font-size: 0.62rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    #name-plate .plate-line {
+      width: 40px;
+      height: 1px;
+      background: rgba(100, 130, 200, 0.3);
+    }
+
+    /* ── Credits overlay ─────────────────────────────────────────────────── */
+
+    #credits {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 10, 0.88);
+      z-index: 20;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+
+    #credits.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    #credits h2 {
+      color: #aabbff;
+      font-size: 1.1rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      margin-bottom: 1.8rem;
+    }
+
+    #credits .credit-row {
+      color: #445566;
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 0.55rem;
+      text-align: center;
+    }
+
+    #credits .credit-row a {
+      color: #6688aa;
+      text-decoration: none;
+    }
+
+    #credits .credit-row a:hover {
+      color: #aabbff;
+    }
+
+    #credits .credit-divider {
+      width: 40px;
+      height: 1px;
+      background: rgba(100, 130, 200, 0.2);
+      margin: 1.2rem auto;
+    }
+
+    #credits .credit-tech {
+      color: #2a3a4a;
+      font-size: 0.6rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      line-height: 1.9;
+      text-align: center;
+    }
+
+    #credits .close-hint {
+      margin-top: 2rem;
+      color: #2a3a4a;
+      font-size: 0.62rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    /* ── First-interact pulse overlay ────────────────────────────────────── */
+
+    #pulse-flash {
+      position: fixed;
+      inset: 0;
+      background: transparent;
+      pointer-events: none;
+      z-index: 3;
+      opacity: 0;
+    }
+
+    /* ── Discovery hint (fades in when audio cue starts) ─────────────────── */
+
+    #discovery-hint {
+      position: fixed;
+      top: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #445566;
+      font-size: 0.65rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 1.5s ease;
+      z-index: 5;
+    }
+
+    #discovery-hint.visible { opacity: 1; }
+    #discovery-hint.fade    { opacity: 0; }
+
+    /* ── Arrival fade ─────────────────────────────────────────────────────── */
+
+    #arrival-fade {
+      position: fixed;
+      inset: 0;
+      background: #00000a;
+      pointer-events: none;
+      z-index: 6;
+      opacity: 1;
+      transition: opacity 2.6s ease;
+    }
+
+    #arrival-fade.gone { opacity: 0; }
+
+    /* ── Visualiser ───────────────────────────────────────────────────────── */
+
+    #visualizer-canvas {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 80px;
+      pointer-events: none;
+      opacity: 0.5;
+      z-index: 4;
+    }
+
+    /* ── Mobile touch joysticks ───────────────────────────────────────────── */
+
+    #touch-move {
+      position: fixed;
+      bottom: 5rem;
+      left: 2rem;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: 1px solid rgba(100, 120, 200, 0.25);
+      background: rgba(10, 10, 30, 0.35);
+      pointer-events: none;
+      opacity: 0;
+      z-index: 8;
+      transition: opacity 0.3s;
+      display: none;
+    }
+
+    #touch-look {
+      position: fixed;
+      bottom: 5rem;
+      right: 2rem;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: 1px solid rgba(100, 120, 200, 0.25);
+      background: rgba(10, 10, 30, 0.35);
+      pointer-events: none;
+      opacity: 0;
+      z-index: 8;
+      transition: opacity 0.3s;
+      display: none;
+    }
+
+    #touch-move.visible,
+    #touch-look.visible {
+      opacity: 1;
+    }
+
+    .joystick-knob {
+      position: absolute;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(100, 130, 220, 0.4);
+      border: 1px solid rgba(150, 170, 255, 0.4);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    /* ── Touch interact button ────────────────────────────────────────────── */
+
+    #touch-interact {
+      position: fixed;
+      bottom: 8rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: transparent;
+      border: 1px solid rgba(100, 120, 200, 0.3);
+      color: rgba(170, 187, 255, 0.6);
+      font-family: 'Courier New', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      padding: 0.5rem 1.5rem;
+      pointer-events: all;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 8;
+    }
+
+    #touch-interact.visible {
+      display: block;
+      opacity: 1;
+    }
+    /* ── Pause menu ──────────────────────────────────────────────────────── */
+
+    #pause-menu {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.9rem;
+      background: rgba(0, 0, 12, 0.9);
+      z-index: 19;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+
+    #pause-menu.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    #pause-menu h2 {
+      color: #aabbff;
+      font-size: 1.1rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+    }
+
+    #pause-menu .menu-sub {
+      color: #445566;
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 1.2rem;
+    }
+
+    .menu-btn {
+      display: block;
+      min-width: 220px;
+      text-align: center;
+      background: transparent;
+      border: 1px solid #334466;
+      color: #aabbff;
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      padding: 0.7rem 1.5rem;
+      cursor: pointer;
+      text-transform: uppercase;
+      text-decoration: none;
+      transition: border-color 0.3s, color 0.3s;
+    }
+
+    .menu-btn:hover {
+      border-color: #aabbff;
+      color: #fff;
+    }
+
+    #menu-btn {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      background: transparent;
+      border: 1px solid rgba(100, 120, 200, 0.25);
+      color: rgba(170, 187, 255, 0.5);
+      font-family: 'Courier New', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 0.4rem 0.9rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s;
+      z-index: 9;
+    }
+
+    #menu-btn.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+    /* ── How-to on intro screen ──────────────────────────────────────────── */
+
+    #overlay .how-to {
+      text-align: center;
+      margin: 0.6rem 0 1.4rem;
+      padding: 0 1rem;
+    }
+
+    #overlay .how-to p {
+      color: #7788aa;
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      line-height: 1.9;
+    }
+
+    /* ── Info panels (controls, story, credits) ──────────────────────────── */
+
+    .info-panel {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: rgba(0, 0, 10, 0.9);
+      z-index: 20;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+
+    .info-panel.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .info-panel h2 {
+      color: #aabbff;
+      font-size: 1.1rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      margin-bottom: 1.8rem;
+    }
+
+    .panel-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 1.5rem;
+      width: min(480px, 90vw);
+      color: #6677aa;
+      font-size: 0.72rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 0.6rem;
+    }
+
+    .panel-row span:first-child {
+      color: #aabbff;
+    }
+
+    .panel-note {
+      max-width: 480px;
+      color: #556677;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      line-height: 1.8;
+      text-align: center;
+      margin-top: 0.9rem;
+    }
+
+    .panel-text {
+      max-width: 520px;
+      color: #7788aa;
+      font-size: 0.78rem;
+      letter-spacing: 0.06em;
+      line-height: 2;
+      text-align: center;
+      margin-bottom: 1.2rem;
+    }
+
+    .info-panel .close-hint {
+      margin-top: 2rem;
+      color: #2a3a4a;
+      font-size: 0.62rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="overlay">
+    <h1>Echospace</h1>
+    <p class="subtitle">a spatial audio environment</p>
+    <div class="how-to">
+      <p id="how-controls">WASD to move, mouse to look, click to interact</p>
+      <p>Six sounds surround you. A seventh is hidden.</p>
+      <p id="how-menu">Press Esc at any time for the menu.</p>
+    </div>
+    <p class="headphone-note">best experienced with headphones</p>
+    <button id="start-btn">Enter</button>
+  </div>
+
+  <div id="arrival-fade"></div>
+  <div id="controls-hint">WASD to move &nbsp;|&nbsp; Mouse to look &nbsp;|&nbsp; Click objects to interact &nbsp;|&nbsp; Esc: menu</div>
+  <div id="discovery-hint">something stirs in the dark</div>
+  <div id="crosshair"></div>
+  <div id="interact-prompt">[ click to interact ]</div>
+  <div id="name-plate">
+    <div class="plate-line"></div>
+    <div class="plate-title" id="plate-title"></div>
+    <div class="plate-detail" id="plate-detail"></div>
+    <div class="plate-line"></div>
+  </div>
+  <div id="pulse-flash"></div>
+
+  <button id="menu-btn">menu</button>
+
+  <div id="pause-menu">
+    <h2>Echospace</h2>
+    <div class="menu-sub">paused</div>
+    <button class="menu-btn" id="resume-btn">Resume</button>
+    <button class="menu-btn" id="controls-btn">Controls</button>
+    <button class="menu-btn" id="story-btn">Story</button>
+    <button class="menu-btn" id="credits-btn">Credits</button>
+    <!-- placeholder: set href to the portfolio page this game is opened from -->
+    <a class="menu-btn" id="return-link" href="https://alizpasztor.com" target="_top">Return to portfolio</a>
+  </div>
+
+  <div id="controls-panel" class="info-panel">
+    <h2>Controls</h2>
+    <div class="panel-row"><span>WASD / arrows</span><span>move</span></div>
+    <div class="panel-row"><span>mouse</span><span>look</span></div>
+    <div class="panel-row"><span>click</span><span>interact with the object ahead</span></div>
+    <div class="panel-row"><span>esc</span><span>menu</span></div>
+    <div class="panel-note">On touch devices the left stick moves, the right stick looks, and an interact button appears when you are close to an object.</div>
+    <div class="panel-note">Walk up to an object before you click it. A prompt appears when you are close enough.</div>
+    <div class="panel-note">One sound is hidden somewhere in the dark. Listen for it.</div>
+    <div class="close-hint">press escape or click to return</div>
+  </div>
+
+  <div id="story-panel" class="info-panel">
+    <h2>Story</h2>
+    <p class="panel-text">Nobody remembers who built the hall. It has no walls you can find and no light you can trust, only objects that hum when someone is near enough to hear them.</p>
+    <p class="panel-text">Each object keeps one sound. The sounds are related, and if you stand between two of them you can feel it, a faint tug, like strings tuned to the same note.</p>
+    <p class="panel-text">There is a seventh voice that has never carried to the centre of the hall. It is very quiet. If you walk far enough into the dark, it might answer.</p>
+    <div class="close-hint">press escape or click to return</div>
+  </div>
+
+  <div id="credits" class="info-panel">
+    <h2>Echospace</h2>
+    <div class="credit-row">concept, design &amp; development</div>
+    <div class="credit-row"><a href="https://alizpasztor.com" target="_blank">AL!Z - alizpasztor.com</a></div>
+    <div class="credit-divider"></div>
+    <div class="credit-tech">
+      Three.js r128 - 3D rendering<br>
+      Web Audio API - spatial audio engine<br>
+      HRTF panning - binaural localisation<br>
+      Procedural synthesis - zero samples<br>
+      Spaced fundamentals to limit masking between voices<br>
+      Algorithmic reverb - convolution impulse response
+    </div>
+    <div class="credit-divider"></div>
+    <div class="close-hint">press escape or click to return</div>
+  </div>
+  <canvas id="visualizer-canvas"></canvas>
+
+  <!-- Mobile joysticks -->
+  <div id="touch-move"><div class="joystick-knob" id="move-knob"></div></div>
+  <div id="touch-look"><div class="joystick-knob" id="look-knob"></div></div>
+  <button id="touch-interact">[ interact ]</button>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/objects.js"></script>
+  <script src="js/connections.js"></script>
+  <script src="js/main.js"></script>
+
+</body>
+</html>
